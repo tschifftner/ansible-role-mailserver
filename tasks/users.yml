@@ -1,0 +1,22 @@
+---
+
+- name: Create vmail group
+  group:
+    name: '{{ mailserver_vmail_group }}'
+    gid: '{{ mailserver_vmail_gid }}'
+
+- name: Create vmail user
+  user:
+    name: '{{ mailserver_vmail_user }}'
+    uid: '{{ mailserver_vmail_uid }}'
+    group: '{{ mailserver_vmail_group }}'
+    home: '{{ mailserver_vmail_dir }}'
+
+
+- name: Ensure vmail directories exist
+  file:
+    path: '{{ mailserver_vmail_dir }}'
+    state: directory
+    owner: '{{ mailserver_vmail_user }}'
+    group: '{{ mailserver_vmail_group }}'
+    mode: 0770

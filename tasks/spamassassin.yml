@@ -1,0 +1,106 @@
+---
+
+- name: Install spamassassin
+  apt:
+    pkg: '{{ item }}'
+    state: present
+  with_items: '{{ mailserver_spamassassin_apt_packages }}'
+
+- name: Ensure directories exist
+  file:
+    path: '{{ item }}'
+    state: directory
+    owner: '{{ mailserver_vmail_user }}'
+    group: '{{ mailserver_vmail_group }}'
+  with_items:
+    - '{{ mailserver_vmail_dir }}/sieve'
+    - '{{ mailserver_vmail_dir }}/sieve/global'
+
+- name: Copy anti spam script for spamassassin
+  copy:
+    src: 'spampipe.sh'
+    dest: '{{ mailserver_vmail_dir }}/spampipe.sh'
+    owner: '{{ mailserver_vmail_user }}'
+    group: '{{ mailserver_vmail_group }}'
+    mode: 0750
+
+- name: Copy spam-global.sieve
+  copy:
+    src: 'spam-global.sieve'
+    dest: '{{ mailserver_vmail_dir }}/sieve/global/spam-global.sieve'
+    owner: '{{ mailserver_vmail_user }}'
+    group: '{{ mailserver_vmail_group }}'
+    mode: 0750
+
+- name: Check if database is empty
+  shell: 'mysql -u "{{ mailserver_spamassassin_db_user }}" -p"{{ mailserver_spamassassin_db_password }}" -e "USE {{ mailserver_spamassassin_db_database }}; SHOW TABLES;" | wc -l'
+  register: _mailserver_spamassassin_db
+  changed_when: false
+  when: _install_database
+
+- name: Import database
+  mysql_db:
+    state: import
+    name: '{{ mailserver_spamassassin_db_database }}'
+    target: /usr/share/doc/spamassassin/sql/bayes_mysql.sql
+    login_user: '{{ mailserver_spamassassin_db_user }}'
+    login_password: '{{ mailserver_spamassassin_db_password }}'
+    login_host: '{{ mailserver_spamassassin_db_host }}'
+  when: _install_database and _mailserver_spamassassin_db.stdout == '0'
+
+- name: Copy local.cf configration
+  notify: restart spamassassin
+  template:
+    src: 'spamassassin/local.cf'
+    dest: '/etc/mail/spamassassin/local.cf'
+    owner: root
+    group: root
+    mode: 0640
+
+- name: Grand acl permissions
+  acl:
+    name: /etc/mail/spamassassin/local.cf
+    entity: '{{ item }}'
+    etype: user
+    permissions: r
+    state: present
+  with_items:
+    - '{{ mailserver_vmail_user }}'
+    - 'amavis'
+
+- name: Copy amavis configration
+  notify: restart dovecot
+  template:
+    src: 'spamassassin/sa-care.sh'
+    dest: '/root/sa-care.sh'
+    owner: root
+    group: root
+    mode: 0750
+
+- name: Set crontab
+  cron:
+    name: 'run /root/sa-care.sh'
+    job: '/root/sa-care.sh'
+    special_time: daily
+    state: present
+    cron_file: 'spamassassin'
+    user: root
+
+- name: Run ./sa-care.sh
+  shell: /root/sa-care.sh
+  changed_when: false # idempotence
+
+- name: Check if razor is setup
+  register: _razor_identity
+  become_user: 'amavis'
+  stat:
+    path: ~/.razor/identity
+
+- name: Register at razor and download server lists
+  shell: '{{ item }}'
+  become_user: 'amavis'
+  with_items:
+    - 'razor-admin -create'
+    - 'razor-admin -register'
+    - 'pyzor discover'
+  when: not _razor_identity.stat.exists

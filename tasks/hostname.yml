@@ -1,0 +1,27 @@
+---
+
+
+- name: Set Host name
+  hostname:
+    name: '{{mailserver_local_hostname}}'
+
+- name: Set fqdn hostname
+  copy:
+    content: '{{ mailserver_fqdn_hostname }}'
+    dest: /etc/mailname
+
+- name: Set hostname in /etc/hosts
+  lineinfile:
+    dest: /etc/hosts
+    regexp: '{{ item.regexp }}'
+    line: '{{ item.line }}'
+  with_items:
+    - regexp: '^127.0.0.1'
+      line: '127.0.0.1 {{mailserver_fqdn_hostname}} {{mailserver_local_hostname}} localhost.localdomain localhost'
+
+    - regexp: '^::1'
+      line: '::1 {{mailserver_fqdn_hostname}} {{mailserver_local_hostname}} localhost.localdomain ip6-localhost'
+
+- name: Set hostname on cli
+  command: 'hostnamectl set-hostname {{mailserver_fqdn_hostname}}'
+  changed_when: false # idempotence

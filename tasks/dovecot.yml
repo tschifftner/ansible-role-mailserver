@@ -1,0 +1,52 @@
+---
+- name: Define sql config file
+  set_fact:
+    _mailserver_dovecot_sql_config: 'dovecot-sql-vimbadmin.conf'
+  when: mailserver_use_vimbadmin
+
+- name: Install dovecot
+  apt:
+    pkg: '{{ item }}'
+    state: present
+  with_items: '{{ mailserver_dovecot_apt_packages }}'
+
+- name: Ensure only own configration exists
+  file:
+    path: '{{ item }}'
+    state: absent
+  with_items:
+    - '/etc/dovecot/conf.d'
+    - '/etc/dovecot/dovecot-dict-auth.conf.ext'
+    - '/etc/dovecot/dovecot-dict-sql.conf.ext'
+    - '/etc/dovecot/dovecot-sql.conf.ext'
+    - '/etc/dovecot/private'
+
+- name: Copy dovecot config
+  notify: restart dovecot
+  template:
+    src: 'dovecot/{{ item.src }}'
+    dest: '/etc/dovecot/{{ item.dest }}'
+    owner: root
+    group: root
+    mode: 0640
+  with_items:
+    - { src: 'dovecot.conf', dest: 'dovecot.conf' }
+    - { src: '{{ _mailserver_dovecot_sql_config }}', dest: 'dovecot-sql.conf' }
+
+- name: Grand acl permissions
+  acl:
+    name: /etc/dovecot/dovecot.conf
+    entity: '{{ vimbadmin_user }}'
+    etype: user
+    permissions: r
+    state: present
+  when: mailserver_use_vimbadmin and vimbadmin_user is defined
+
+
+- name: Dovecot replication cron
+  cron:
+    name: "dovecot replication"
+    minute: "*/3"
+    user: root
+    job: '/usr/bin/doveadm sync -A tcp:{{ mailserver_dovecot_replication_host }}'
+    cron_file: 'dovecot'

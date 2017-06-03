@@ -1,0 +1,3 @@
+{% for key in mailserver_opendkim_keys %}
+{{ key.group }}    %:{{ key.name }}:/etc/opendkim/keys/{{ key.name }}.private
+{% endfor %}

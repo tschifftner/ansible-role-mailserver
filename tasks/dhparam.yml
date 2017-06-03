@@ -1,0 +1,32 @@
+---
+
+- name: Check if dhparam.pem file exists
+  stat:
+    path: '{{ mailserver_dhparam_file }}'
+  register: _mailserver_dhparam_file
+
+- name: Ensure dhparam.pem directory exists
+  file:
+    path: '{{ mailserver_dhparam_file | dirname }}'
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  when: not _mailserver_dhparam_file.stat.exists
+
+- name: Generate dhparam.pem
+  command: openssl dhparam 2048 -out {{ mailserver_dhparam_file }}
+  args:
+    creates: '{{ mailserver_dhparam_file }}'
+  async: 600
+  poll: 5
+  when: not _mailserver_dhparam_file.stat.exists
+
+- name: Regenerate dhparam daily
+  cron:
+    name: 'regenerate dhparam.pem'
+    job: 'FILE=`mktemp` ; openssl dhparam 2048 -out $FILE && mv -f $FILE {{ mailserver_dhparam_file }}'
+    special_time: daily
+    state: present
+    cron_file: 'dhparam'
+    user: root

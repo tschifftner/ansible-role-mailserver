@@ -1,0 +1,57 @@
+---
+- name: Define sql config file
+  set_fact:
+    _mailserver_postfix_sql_config: 'sql-vimbadmin'
+  when: mailserver_use_vimbadmin
+
+- name: Install postfix
+  apt:
+    pkg: '{{ item }}'
+    state: present
+  with_items: '{{ mailserver_postfix_apt_packages }}'
+
+- name: Ensure postifx sql folder is present
+  file:
+    path: '/etc/postfix/sql'
+    state: directory
+
+- name: Copy postfix configration
+  notify: restart postfix
+  template:
+    src: 'postfix/{{ item }}'
+    dest: '/etc/postfix/{{ item }}'
+    owner: root
+    group: root
+    mode: 0640
+  with_items:
+    - 'main.cf'
+    - 'master.cf'
+    - 'submission_header_cleanup'
+    - 'without_ptr'
+    - 'postscreen_access'
+
+- name: Copy postfix sql configration
+  notify: restart postfix
+  template:
+    src: 'postfix/{{ _mailserver_postfix_sql_config }}/{{ item }}'
+    dest: '/etc/postfix/sql/{{ item }}'
+    owner: root
+    group: root
+    mode: 0640
+  with_items:
+    - 'accounts.cf'
+    - 'aliases.cf'
+    - 'domains.cf'
+    - 'recipient-access.cf'
+    - 'sender-login-maps.cf'
+    - 'tls-policy.cf'
+
+- name: Generate empty ptr db
+  command: postmap /etc/postfix/without_ptr
+  args:
+    creates: /etc/postfix/without_ptr.db
+  changed_when: false
+
+- name: Generate /etc/aliases.db
+  command: newaliases
+  changed_when: false

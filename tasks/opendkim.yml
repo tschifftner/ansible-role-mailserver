@@ -1,0 +1,69 @@
+---
+
+- name: Install opendkim
+  apt:
+    pkg: '{{ item }}'
+    state: present
+  with_items: '{{ mailserver_opendkim_apt_packages }}'
+
+- name: Ensure opendkim config folder is present
+  notify: restart opendkim
+  file:
+    path: '{{ item }}'
+    state: directory
+    owner: opendkim
+    group: opendkim
+    mode: 0700
+  with_items:
+    - '/etc/opendkim'
+    - '/etc/opendkim/keys'
+
+- name: Copy opendkim configration
+  notify: restart opendkim
+  template:
+    src: 'opendkim/{{ item.src }}'
+    dest: '{{ item.dest }}'
+    owner: opendkim
+    group: opendkim
+    mode: 0640
+  with_items:
+    - src: opendkim.conf
+      dest: /etc/opendkim.conf
+    - src: signingtable
+      dest: /etc/opendkim/signingtable
+    - src: keytable
+      dest: /etc/opendkim/keytable
+
+- name: Define DKIM private keys
+  notify: restart opendkim
+  template:
+    src: opendkim/key.private
+    dest: /etc/opendkim/keys/{{ item.name }}.private
+    owner: opendkim
+    group: opendkim
+    mode: 0600
+  when: mailserver_opendkim_keys|length and item.private is defined
+  with_items: '{{ mailserver_opendkim_keys }}'
+  no_log: true
+
+- name: Generate opendkim keys
+  command: opendkim-genkey --selector={{ item.name }} --bits=2048 --directory=/etc/opendkim/keys
+  args:
+    creates: /etc/opendkim/keys/{{ item.name }}.private
+  when: mailserver_opendkim_keys|length and item.private is not defined
+  with_items: '{{ mailserver_opendkim_keys }}'
+  no_log: true
+
+#- name: Ensure proper permission on opendkim keys
+#  file:
+#    path: /etc/opendkim/keys/
+#    owner: opendkim
+#    group: opendkim
+#    mode: 0400
+#    recurse: true
+
+- name: Ensure postfix belongs to group opendkim
+  user:
+    name: postfix
+    groups: opendkim
+    append: yes

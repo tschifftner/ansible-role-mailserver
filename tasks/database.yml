@@ -1,0 +1,45 @@
+---
+
+- name: Check if database is empty
+  shell: 'mysql -u "{{ mailserver_db_user }}" -p"{{ mailserver_db_password }}" -e "USE {{ mailserver_db_database }}; SHOW TABLES;" | wc -l'
+  register: _mailserver_db
+  changed_when: false
+  when: mailserver_use_vimbadmin == false
+
+- name: Copy schema.sql
+  copy:
+    src: schema.sql
+    dest: /tmp/schema.sql
+  when: mailserver_use_vimbadmin == false and _mailserver_db.stdout == '0'
+
+- name: Import database
+  mysql_db:
+    state: import
+    name: '{{ mailserver_db_database }}'
+    target: /tmp/schema.sql
+    login_user: '{{ mailserver_db_user }}'
+    login_password: '{{ mailserver_db_password }}'
+    login_host: '{{ mailserver_db_host }}'
+  when: mailserver_use_vimbadmin == false and _mailserver_db.stdout == '0'
+
+- name: Change test data when using vimbadmin
+  set_fact:
+    mailserver_testdata: 'test-data-vimbadmin.sql'
+  when: mailserver_use_vimbadmin
+
+- name: Copy {{ mailserver_testdata }}
+  template:
+    src: '{{ mailserver_testdata }}'
+    dest: '/tmp/{{ mailserver_testdata }}'
+  when: mailserver_db_install_testdata
+
+- name: Import {{ mailserver_testdata }}
+  mysql_db:
+    state: import
+    name: '{{ mailserver_db_database }}'
+    target: '/tmp/{{ mailserver_testdata }}'
+    login_user: '{{ mailserver_db_user }}'
+    login_password: '{{ mailserver_db_password }}'
+    login_host: '{{ mailserver_db_host }}'
+  when: mailserver_db_install_testdata
+  changed_when: false # idempotence

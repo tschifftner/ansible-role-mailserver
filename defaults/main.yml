@@ -1,0 +1,123 @@
+---
+
+mailserver_local_hostname: 'mail'
+mailserver_fqdn_hostname: 'mail.example.org'
+mailserver_postmaster_email: 'postmaster@{{ mailserver_fqdn_hostname }}'
+
+mailserver_ssl_certificate_key: ''
+mailserver_ssl_certificate: ''
+mailserver_ssl_intermediate_certificate: ''
+mailserver_ssl_root_certificate: ''
+
+mailserver_ssl_already_installed: false
+mailserver_ssl_certificate_path: '/etc/mailserver/.ssl/certificate.pem'
+mailserver_ssl_certificate_key_path: '/etc/mailserver/.ssl/certificate_key.pem'
+mailserver_dhparam_file: '/etc/mailserver/.ssl/dhparam.pem'
+
+mailserver_networks: '127.0.0.0/8 [::ffff:127.0.0.0]/104 [::1]/128'
+mailserver_interfaces: '127.0.0.1, ::1'
+#mailserver_interfaces: '127.0.0.1, ::1, {{ ipv4 }}, {{ ipv6 }}'
+
+mailserver_vmail_user: 'vmail'
+mailserver_vmail_group: 'vmail'
+mailserver_vmail_gid: 5000
+mailserver_vmail_uid: 5000
+mailserver_vmail_dir: '/var/vmail'
+
+mailserver_db_host: '127.0.0.1'
+mailserver_db_database: 'mailserver'
+mailserver_db_user: 'mailserver'
+mailserver_db_password: 'strong-password'
+mailserver_db_install_testdata: false
+
+mailserver_spamassassin_db_host: '127.0.0.1'
+mailserver_spamassassin_db_database: 'spamassassin'
+mailserver_spamassassin_db_user: 'spamassassin'
+mailserver_spamassassin_db_password: 'strong-password'
+
+mailserver_mysql_cmd_login:  '-u "{{ mailserver_db_user }}" -p"{{ mailserver_db_password }}"'
+mailserver_spamassassin_mysql_cmd_login: '-u "{{ mailserver_spamassassin_db_user }}" -p"{{ mailserver_spamassassin_db_password }}"'
+#'{{ _mariadb_cmd_login }}' # default is root from role tschifftner.mariadb
+
+mailserver_use_vimbadmin: true
+_mailserver_dovecot_sql_config: 'dovecot-sql.conf'
+_mailserver_postfix_sql_config: 'sql'
+
+mailserver_testdata: 'test-data.conf'
+
+mailserver_testadmin_email: 'admin@example.com'
+mailserver_testadmin_password: '$6$gtQIRXafb0X5rtlm$XQnyK8pOhqRYAYEFPKdyFadYcCCcmnWejLdSbNogWXncymVFb0U3VBvKyPbisupDDLStv44Wy14UX7XHE/0Kf.' #summersun
+mailserver_testuser_username: 'john'
+mailserver_testuser_domain: 'example.com'
+mailserver_testuser_password: '$6$gtQIRXafb0X5rtlm$XQnyK8pOhqRYAYEFPKdyFadYcCCcmnWejLdSbNogWXncymVFb0U3VBvKyPbisupDDLStv44Wy14UX7XHE/0Kf.' #summersun
+mailserver_testuser_aliasname: 'jane'
+
+# Dovecot replication
+mailserver_dovecot_replication: false
+mailserver_dovecot_replication_host: 'tcp:anotherhost.example.com:port'
+mailserver_dovecot_replication_port: '12345'
+mailserver_dovecot_replication_secret: ''
+
+# OpenDKIM
+mailserver_opendkim_keys:
+  - name: key1
+    group: default
+#    public: "MIIBI...QIDAQAB"
+#    private: |
+#  -----BEGIN RSA PRIVATE KEY-----
+#  MIIEowIBAAKCAQEA0pTJHL60tSiqt9J2q72bEL/zghEoCh034X/ZfatOkPa8I+EB
+#  ...
+#  J97F69OlWisWsDYUgKp0wCivlag7Vboqx9jFq+Coe2SkoYzHU02H
+#  -----END RSA PRIVATE KEY-----
+
+mailserver_opendkim_signingtable:
+  - { email: '*', group: 'default' }
+
+mailserver_postfix_apt_packages:
+  - postfix
+  - postfix-mysql
+  - mailutils
+
+mailserver_dovecot_apt_packages:
+  - dovecot-core
+  - dovecot-mysql
+  - dovecot-pop3d
+  - dovecot-imapd
+  - dovecot-lmtpd
+  - dovecot-sieve
+  - dovecot-managesieved
+  - dovecot-antispam
+
+mailserver_opendkim_apt_packages:
+  - opendkim
+  - opendkim-tools
+  - postfix-policyd-spf-python
+
+mailserver_amavis_apt_packages:
+  - amavisd-new
+  - libmilter-dev
+  - make
+  - libdbi-perl
+  - libdbd-mysql-perl
+  - arj
+  - bzip2
+  - cabextract
+  - cpio
+  - file
+  - gzip
+  - nomarch
+  - pax
+  - unzip
+  - zoo
+  - zip
+  - zoo
+
+
+mailserver_spamassassin_apt_packages:
+  - spamassassin
+  - acl
+  - razor
+  - pyzor
+
+
+#mailserver_apt_packages: '{{ dovecot_default_apt_packages + dovecot_custom_apt_packages }}'

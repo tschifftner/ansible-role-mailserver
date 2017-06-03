@@ -1,0 +1,3 @@
+{% for rule in mailserver_opendkim_signingtable %}
+{{ rule.email }} {{ rule.group }}
+{% endfor %}

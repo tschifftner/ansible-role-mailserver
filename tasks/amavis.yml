@@ -1,0 +1,50 @@
+---
+
+- name: Install amavis
+  apt:
+    pkg: '{{ item }}'
+    state: present
+  with_items: '{{ mailserver_amavis_apt_packages }}'
+
+- name: Copy amavis configration
+  notify: restart amavis
+  template:
+    src: 'amavis/conf.d/50-user'
+    dest: '/etc/amavis/conf.d/50-user'
+    owner: root
+    group: root
+    mode: 0640
+
+- name: Check if amavisd milter is installed
+  register: _amavis_milter
+  stat:
+    path: /usr/local/sbin/amavisd-milter
+
+- name: Get amavisd milter
+  unarchive:
+    src: https://github.com/ThomasLeister/amavisd-milter/archive/master.zip
+    dest: /tmp
+    copy: no
+  when: not _amavis_milter.stat.exists
+
+# This works
+- name: Install amavisd-milter-master
+  notify: restart amavis
+  command: '{{ item }}'
+  args:
+    chdir: "/tmp/amavisd-milter-master"
+  when: not _amavis_milter.stat.exists
+  with_items:
+    - ./configure
+    - make
+    - make install
+    - make clean
+
+- name: Set amavisd-milter unit script
+  notify: restart amavis
+  template:
+    src: 'amavis/amavisd-milter.service'
+    dest: '/etc/systemd/system/amavisd-milter.service'
+    owner: root
+    group: root
+    mode: 0644

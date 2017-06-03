@@ -1,0 +1,39 @@
+---
+- hosts: localhost
+  remote_user: root
+
+  vars:
+    # Test data
+    mailserver_install_db_testdata: true
+
+    # DB Mailserver
+    mailserver_db_host: localhost
+    mailserver_db_database: 'mailserver'
+    mailserver_db_user: 'mailserver'
+    mailserver_db_password: 'tr4v1s'
+    mailserver_db_install_testdata: true
+
+    # DB Spamassasin
+    mailserver_spamassassin_db_host: localhost
+    mailserver_spamassassin_db_database: 'spamassassin'
+    mailserver_spamassassin_db_user: 'spamassassin'
+    mailserver_spamassassin_db_password: '{{ vault_mariadb_spamassassin_password }}'
+
+    # DB Roundcube
+    roundcube_sql_host: 127.0.0.1
+    roundcube_sql_database: "roundcube"
+    roundcube_sql_user: "roundcube"
+    roundcube_sql_password: "{{ vault_mariadb_roundcube_password }}"
+
+    # SSL
+    mailserver_ssl_already_installed: true
+
+    # Postfix
+    mailserver_local_hostname: 'mail'
+    mailserver_fqdn_hostname: 'mail.ambimax.com'
+    mailserver_networks: '127.0.0.0/8 [::ffff:127.0.0.0]/104 [::1]/128'
+    mailserver_interfaces: '127.0.0.1, ::1'
+
+
+  roles:
+    - ansible-role-mailserver

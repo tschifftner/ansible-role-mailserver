@@ -1,0 +1,5 @@
+user = {{ mailserver_db_user }}
+password = {{ mailserver_db_password }}
+hosts = {{ mailserver_db_host }}
+dbname = {{ mailserver_db_database }}
+query = select 1 as found from accounts where username = '%u' and domain = '%d' and enabled = true LIMIT 1;

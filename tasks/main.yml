@@ -1,0 +1,40 @@
+---
+
+- name: Set failover facts
+  set_fact:
+    _install_database: "{{ mariadb_replication_role == 'master' and mariadb_server_id == 1 }}"
+
+- include: hostname.yml
+  tags: ['mailserver-hostname']
+
+- include: ssl.yml
+  when: mailserver_ssl_already_installed == false
+  tags: ['mailserver-ssl']
+
+- include: database.yml
+  when: _install_database
+  tags: ['mailserver-database']
+
+- include: dhparam.yml
+  tags: ['mailserver-dhparam']
+
+- include: users.yml
+  tags: ['mailserver-users']
+
+- include: dovecot.yml
+  tags: ['mailserver-dovecot']
+
+- include: amavis.yml
+  tags: ['mailserver-amavis']
+
+- include: postfix.yml
+  tags: ['mailserver-postfix']
+
+- include: opendkim.yml
+  tags: ['mailserver-opendkim']
+
+- include: spamassassin.yml
+  tags: ['mailserver-spamassassin']
+
+- include: start.yml
+  tags: ['mailserver-start']

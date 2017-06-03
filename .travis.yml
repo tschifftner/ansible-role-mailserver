@@ -1,0 +1,100 @@
+---
+sudo: required
+dist: trusty
+
+language: python
+python: "2.7"
+
+env:
+  - SITE=test.yml ANSIBLE_VERSION=latest
+#  - SITE=test.yml ANSIBLE_VERSION=2.1.0.0
+
+  - SITE=test-vimbadmin.yml ANSIBLE_VERSION=latest
+#  - SITE=test-vimbadmin.yml ANSIBLE_VERSION=2.1.0.0
+
+branches:
+  only:
+    - master
+
+addons:
+  mariadb: '10.1'
+
+before_install:
+  - sudo apt-get update -qq
+  - sudo apt-get install -y curl swaks
+
+install:
+  # Install Ansible.
+  - if [ "$ANSIBLE_VERSION" = "latest" ]; then pip install --no-binary ansible ansible; else pip install --no-binary ansible ansible==$ANSIBLE_VERSION; fi
+
+  # Add ansible.cfg to pick up roles path.
+  - "{ echo '[defaults]'; echo 'roles_path = ../'; } >> ansible.cfg"
+
+  # Install ansible-lint
+  - pip install ansible-lint
+
+  - sudo ./tests/generate-ssl.sh
+
+before_script:
+  - mysql -u root -e "CREATE DATABASE mailserver;"
+  - mysql -u root -e "GRANT SELECT,INSERT,UPDATE,DELETE ON mailserver.* TO 'mailserver'@'127.0.0.1' IDENTIFIED BY 'tr4v1s';"
+  - mysql -u root -e "CREATE DATABASE spamassassin;"
+  - mysql -u root -e "GRANT SELECT,INSERT,UPDATE,DELETE ON mailserver.* TO 'spamassassin'@'127.0.0.1' IDENTIFIED BY 'tr4v1s';"
+
+script:
+  # Check the role/playbook's syntax.
+  - ansible-playbook -i tests/inventory tests/$SITE --syntax-check
+
+  # Run the role/playbook with ansible-playbook.
+  - ansible-playbook -i tests/inventory tests/$SITE --connection=local --sudo
+
+  # Run the role/playbook again, checking to make sure it's idempotent.
+  - >
+    ansible-playbook -i tests/inventory tests/$SITE --connection=local --sudo
+    | grep -q 'changed=0.*failed=0'
+    && (echo 'Idempotence test: pass' && exit 0)
+    || (echo 'Idempotence test: fail' && exit 1)
+
+  # ansible-lint checks for best practice
+  - ansible-lint tests/$SITE
+
+  # Check if postfix is installed
+  - postconf -d | grep mail_version
+
+  # IMAP Test
+  - echo exit | telnet localhost 143 | grep 'Connected to localhost.'
+  - echo "QUIT;" | openssl s_client -crlf -connect 127.0.0.1:993 | grep 'Travis CI Test SSL Certificate'
+
+  # POP Test
+  - echo exit | telnet localhost 110 | grep 'Connected to localhost.'
+  - echo "QUIT;" | openssl s_client -crlf -connect 127.0.0.1:995 | grep 'Travis CI Test SSL Certificate'
+
+  # SMTP Test
+  - echo exit | telnet localhost 25 | grep 'Connected to localhost.'
+  - echo "QUIT;" | openssl s_client -starttls smtp -connect 127.0.0.1:25 | grep 'Travis CI Test SSL Certificate'
+  #- echo "QUIT;" | openssl s_client -starttls smtp -connect 127.0.0.1:465 | grep 'Travis CI Test SSL Certificate'
+  - echo "QUIT;" | openssl s_client -starttls smtp -connect 127.0.0.1:587 | grep 'Travis CI Test SSL Certificate'
+
+  - swaks --server example.com --to john@example.com
+
+after_failure:
+  # run playbook again to see idempotence failures
+  - ansible-playbook -i tests/inventory tests/$SITE --connection=local --sudo -vvv
+  - service postfix status
+  - 'ls -l /run/'
+  - sudo tail -n150 /var/log/syslog
+  - ansible --version
+  - ansible-lint --version
+  - echo exit | telnet localhost 25
+  - echo exit | telnet localhost 465
+  - echo "QUIT;" | openssl s_client -connect 127.0.0.1:587
+  - sudo ls -l /etc/postfix/.ssl/
+  - sudo netstat -pln
+  - sudo tail -n80 /var/log/mail.log
+  - sudo cat /etc/postfix/main.cf
+  - sudo cat /etc/postfix/master.cf
+
+
+notifications:
+  slack: ambimax:2MlPTX9bY9aPxCPhJGxHKIT6
+  webhooks: https://galaxy.ansible.com/api/v1/notifications/

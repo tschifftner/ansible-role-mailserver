@@ -1,0 +1,5 @@
+user = {{ mailserver_db_user }}
+password = {{ mailserver_db_password }}
+hosts = {{ mailserver_db_host }}
+dbname = {{ mailserver_db_database }}
+query = select concat(destination_username, '@', destination_domain) as destinations from aliases where source_username = '%u' and source_domain = '%d' and enabled = true;

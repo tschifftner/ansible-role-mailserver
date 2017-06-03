@@ -1,0 +1,36 @@
+---
+
+- name: Start dovecot
+  service:
+    name: dovecot
+    state: started
+    enabled: true
+  changed_when: false # make idempotence
+
+- name: Start amavisd-new
+  service:
+    name: amavisd-new
+    state: started
+#    enabled: true
+  changed_when: false # make idempotence
+
+- name: Start amavisd-milter
+  service:
+    name: amavisd-milter
+    state: started
+    enabled: true
+  changed_when: false # make idempotence
+
+- name: Start opendkim
+  service:
+    name: opendkim
+    state: started
+    enabled: true
+  changed_when: false # make idempotence
+
+- name: Start postfix
+  service:
+    name: postfix
+    state: started
+    enabled: true
+  changed_when: false # make idempotence
